@@ -1,0 +1,8 @@
+<?xml-stylesheet type="text/xsl"?>
+<parameters>
+	<NumNeighbors>8</NumNeighbors>
+	<Radius>2</Radius>
+	<Upright>true</Upright>
+	<Interpolation>Linear</Interpolation>
+	<Normalization>L2</Normalization>
+</parameters>
