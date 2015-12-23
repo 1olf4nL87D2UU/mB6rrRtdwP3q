@@ -1,22 +1,14 @@
 classdef managerLBP
-
+    
     methods(Static)
-
-                %PRESO DA MATLAB 2015b
+        
         %  features = extractLBPFeatures(I) extracts uniform local binary patterns
         %  (LBP) from a grayscale image I and returns the features in
-        %  a 1-by-N vector. LBP features encode local texture information and can
-        %  be used for many tasks including classification, detection, and
-        %  recognition.
+        %  a 1-by-N vector. LBP features encode local texture information
+        %  to face recognition
         %
         %  The LBP feature length, N, is based on the image size and the parameter
-        %  values listed below. See the <a href="matlab:helpview(fullfile(docroot,'toolbox','vision','vision.map'),'lbpFeatureLength')" >documentation</a> for more information.
-        %
-        %  [...] = extractLBPFeatures(..., Name, Value) specifies additional
-        %  name-value pairs described below. LBP algorithm parameters control how
-        %  local binary patterns are computed for each pixel in I. LBP histogram
-        %  parameters determine how the distribution of binary patterns is
-        %  aggregated over I to produce the output features.
+        %  values listed below.
         %
         %  LBP algorithm parameters
         %  ------------------------
@@ -28,26 +20,18 @@ classdef managerLBP
         %                  greater detail around each pixel. Typical values are
         %                  between 4 and 24.
         %
-        %                  Default: 8
-        %
         %  'Radius'        The radius, in pixels, of the circular pattern used to
         %                  select neighbors for each pixel in I. Increase the
         %                  radius to capture detail over a larger spatial scale.
         %                  Typical values range from 1 to 5.
         %
-        %                  Default: 1
-        %
         %  'Upright'       A logical scalar. When set to true, the LBP features do
         %                  not encode rotation information. Set 'Upright' to false
         %                  when rotationally invariant features are required.
         %
-        %                  Default: true
-        %
         %  'Interpolation' Specify the interpolation method used to compute pixel
         %                  neighbors as 'Nearest' or 'Linear'. Use 'Nearest' for
         %                  faster computation at the cost of accuracy.
-        %
-        %                  Default: 'Linear'
         %
         %  LBP histogram parameters
         %  ------------------------
@@ -57,23 +41,15 @@ classdef managerLBP
         %                  Select larger cell sizes to collect information over
         %                  larger regions at the cost of loosing local detail.
         %
-        %                  Default: size(I)
         %
         %  'Normalization' Specify the type of normalization applied to the LBP
         %                  histograms as 'L2' or 'None'. Select 'None' to apply a
         %                  custom normalization method as a post-processing step.
         %
-        %                  Default: 'L2'
-        %
-        % Class Support
-        % -------------
-        % The input image I can be uint8, uint16, int16, double, single, or
-        % logical, and it must be real and non-sparse.
-        %
-        % Notes
         % -----
         % This function extracts uniform local binary patterns. Uniform patterns
         % have at most two 1-to-0 or 0-to-1 bit transitions.
+        
         function [lbpHist] = LBPFeaturesExtractor(I, numNeighbors, radius, interpolation, uniform, upright, cellSize, normalization)
             
             I = im2uint8(I);
@@ -85,7 +61,7 @@ classdef managerLBP
             else
                 [offsets, weights] =  managerLBP.createNearestOffsets(x, y);
             end
-       
+            
             
             if ~uniform && upright
                 numBins = uint32(2^numNeighbors);
@@ -185,8 +161,8 @@ classdef managerLBP
             x =  radius * cosd(theta);
             y = -radius * sind(theta);
         end
-
-
+        
+        
         function [offsets, weights] = createBilinearOffsets(x, y, numNeighbors)
             
             % Pre-compute offsets to neighbors of pixel,px
@@ -226,17 +202,17 @@ classdef managerLBP
             offsets = int32(offsets);
             
         end
-
+        
         function [offsets, weights] = createNearestOffsets(x, y)
             offsets = int32(round([x;y]));
             weights = zeros(1,1,'single');
         end
-
+        
         function h = initializeHist(cellSize, numBins, M, N)
             numCells = floor([M N]./cellSize);
             h = zeros([numBins numCells+2],'single');  % +2 for cells bins at edges, these are remove later
         end
-
+        
         function [xmax, ymax] = computeRange(cellSize, radius, M, N)
             
             ymax = floor(M/cellSize(1)) * cellSize(1);
@@ -246,8 +222,8 @@ classdef managerLBP
             ymax = min(ymax, M-radius);
             xmax = min(xmax, N-radius);
         end
-
-         % -----------------------------------------------------------------
+        
+        % -----------------------------------------------------------------
         % Returns a multi-byte LBP code stored in stored as multiple uint8
         % values. lbp(1) is the MSB, lbp(end) is the LSB.
         % -----------------------------------------------------------------
@@ -256,7 +232,7 @@ classdef managerLBP
             coder.inline('always');
             
             lbp = zeros(1,numBytes,'uint8');
-            center = I(y,x);            
+            center = I(y,x);
             
             p2 = coder.internal.indexInt(numNeighbors);
             p1 = coder.internal.indexInt((8*numBytes)-7+1);
@@ -293,7 +269,7 @@ classdef managerLBP
             lbp = sum(scaling.*single(lbp));
             bin = single(lbp)+1;
         end
-
+        
         % -----------------------------------------------------------------
         % Return uniform rotated LBP code from plain LBP (stored in
         % multi-byte format).
@@ -328,8 +304,8 @@ classdef managerLBP
                 bin = numBins;
             end
         end
-
-         % -----------------------------------------------------------------
+        
+        % -----------------------------------------------------------------
         function px = bilinearInterp(I, x, y, idx, offsets, weights)
             coder.inline('always')
             
@@ -364,7 +340,7 @@ classdef managerLBP
             x = int32(x);
             px = single(I(y + offsets(2, idx), x + offsets(1, idx)));
         end
-         % -----------------------------------------------------------------
+        % -----------------------------------------------------------------
         function u = uniformLBP(lbp, NumNeighbors)
             % Returns the number of transitions in a binary lbp code.
             % lbp may be stored in multi-byte format; elem 1 is MSB, end is LSB
@@ -388,14 +364,14 @@ classdef managerLBP
                 n = int32(8);
             end
         end
-         % -----------------------------------------------------------------
+        % -----------------------------------------------------------------
         function n = getNumSetBits(value, NumNeighbors)
             n = uint32(0);
             for i = 1:NumNeighbors
                 n = n + cast(bitget(value, i),'uint32');
             end
         end
-          % -----------------------------------------------------------------
+        % -----------------------------------------------------------------
         function [rotated, count] = rotateLBP(lbp, NumNeighbors)
             % Return minimized lbp pattern computed by rotating the input
             % lbp code to the right until it is minimized. Also return the

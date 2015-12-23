@@ -1,61 +1,39 @@
-clc
-clear
-img=imread('M-010-01.bmp');
-img2=imread('M-010-02.bmp');
-img3=imread('M-011-01.bmp');
+function featuresVector= faceRecognition(I)
 
-%d=dir('mB6rrRtdwP3q\Data\01');
+%Per ora si ottengono risultati peggiori con Viola-Jones e
+%Ridimensionamento, perciò salto temporaneamente
+if false
+    detector = vision.CascadeObjectDetector('ClassificationModel', 'FrontalFaceLBP');
+    bboxes = step(detector,I);
+    
+    %If the Viola-Jones Algorithm doesn't detect a Face, we use a bounding box
+    %that try to eliminate hairs and chin from the image because they are often not
+    %relevant
+    if isempty(bboxes)
+        dim= size(I);
+        bboxes = [5, 5, dim(2)-5, dim(1)-20];
+    end
+    
+    IFaces = insertObjectAnnotation(I, 'rectangle', bboxes, 'Face');
+    %figure, imshow(IFaces), title('Detected faces');
+    
+    croppedI = imcrop(I, bboxes);
+    
+    
+    %RIDIMENSIONAMENTO: va scelto un criterio per determinare la dimensione
+    resizedI = imresize(croppedI, [120 100]);
+    figure, imshow(resizedI);
+    I=resizedI
+end
 
+I=rgb2gray(I);
 
-% Viola-Jones [Per ora lo saltiamo finchè non chiediamo al tutor, è un passaggio inutile date le immagini di input]
-%  detector = vision.CascadeObjectDetector('ClassificationModel', 'FrontalFaceLBP') ;
-%  
-%  bboxes = step(detector,img);
-%  
-%  IFaces = insertObjectAnnotation(img, 'rectangle', bboxes, 'Face');
-%  figure, imshow(IFaces), title('Detected faces');
-
+%Recupero parametri statici e calcolo parametri dinamici
 paramaters = parseXML();
-
-%Funzione copiata da matlab 2015b, ci basta prendere il codice, capirlo e
-%commentarlo e abbiamo finito. Prende solo immagini in scala di grigio,
-%possibile modifica
+cellSize=round(size(I)./paramaters.CellSizeDivisior);
 
 %VA ALLEGGERITO managerLBP togliendo le funzioni che gestiscono parametri
 %inutili che elimineremo fra questi :
 %numNeighbors, radius, interpolation, uniform, upright, cellSize, normalization
-features1 = managerLBP.LBPFeaturesExtractor(rgb2gray(img), 8, 1, 'Linear', true, true, round(size(rgb2gray(img))./4), 'L2');
-features2 = managerLBP.LBPFeaturesExtractor(rgb2gray(img2), 8, 1, 'Linear', true, true, round(size(rgb2gray(img2))./4), 'L2');
-features3 = managerLBP.LBPFeaturesExtractor(rgb2gray(img3), 8, 1, 'Linear', true, true, round(size(rgb2gray(img3))./4), 'L2');
+featuresVector = managerLBP.LBPFeaturesExtractor(I, paramaters.NumNeighbors, paramaters.Radius, paramaters.Interpolation, paramaters.Uniform,paramaters.Upright, cellSize, paramaters.Normalization);
 
-
-%Distanza tra foto
-foto1_1vs1_2=(features1 - features2).^2;
-foto1_1vs2_1=(features1 - features3).^2;
-
-%sto solo verificando di non aver fatto errori copiando le varie funzioni
-%del toolbox (verifico dopo nella stampa che il valore sia uguale)
-f= extractLBPFeatures(rgb2gray(img), 'CellSize', round(size(rgb2gray(img))./4) );
-f2= extractLBPFeatures(rgb2gray(img2), 'CellSize', round(size(rgb2gray(img2))./4) );
-
-g=(f-f2).^2;
-
-fprintf('Media distanza tra Foto 1 e 2 dello stesso individuo= %d uguale a= %d\n',mean (foto1_1vs1_2), mean(g) );
-fprintf('Media distanza tra le Foto 1 di diversi individui= %d\n',mean (foto1_1vs2_1));
-
-
-figure
-bar([foto1_1vs1_2]', 5, 'grouped')
-title('Squared error of LBP Histograms')
-xlabel('LBP Histogram Bins')
-legend('Foto 1 e 2 Individuo 1')
-
-
-figure
-bar([foto1_1vs2_1 ]', 5,  'grouped')
-title('Squared error of LBP Histograms')
-xlabel('LBP Histogram Bins')
-legend('Foto 1 di diversi individui')
-
-%'I valori del primo grafico sono in generale più bassi di quelli del
-%secondo, infatti la media è inferiore..Ciò vuol dire che c'è meno differenza 
