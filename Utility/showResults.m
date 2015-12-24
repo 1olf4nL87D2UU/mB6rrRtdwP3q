@@ -1,4 +1,9 @@
 function []= showResults(fV1, fV2, samePerson)
+%% Visualizzazione dati di confronto tra due vettori di feature fV1 e fV2
+%  Il parametro bool samePerson ha la funzione di guidare la stampa dei
+%  risultati: se samePerson vale true allora fV1 e fV2 sono vettori
+%  estratti da immagini relative allo stesso individuo, altrimenti
+%  appartengono a individui diversi
 
 distancesfV1_fV2= getDistances(fV1, fV2);
 

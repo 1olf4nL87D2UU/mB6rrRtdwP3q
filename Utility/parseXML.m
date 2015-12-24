@@ -1,4 +1,5 @@
 function parameters = parseXML()
+%% Caricamento dei parametri di input per l'algoritmo LBP da un file XML
 
 xDoc = xmlread('parameters.xml');
 allListitems=xDoc.getElementsByTagName('parameters');
@@ -32,7 +33,7 @@ tagElement = parametersList.getElementsByTagName('CellSizeDivisior');
 element = tagElement.item(0);
 CellSizeDivisior=element.getFirstChild.getData;
 
-
+% Conversione da stringa a bool
 if strcmp('true', Uniform)
     Uniform=true;
 else

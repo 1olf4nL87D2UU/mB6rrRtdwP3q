@@ -1,57 +1,47 @@
 classdef managerLBP
     
     methods(Static)
-        
-        %  features = extractLBPFeatures(I) extracts uniform local binary patterns
-        %  (LBP) from a grayscale image I and returns the features in
-        %  a 1-by-N vector. LBP features encode local texture information
-        %  to face recognition
-        %
-        %  The LBP feature length, N, is based on the image size and the parameter
-        %  values listed below.
-        %
-        %  LBP algorithm parameters
-        %  ------------------------
-        %
-        %  'NumNeighbors'  The number of neighbors used to compute the local binary
-        %                  pattern for each pixel in I. The set of neighbors is
-        %                  selected from a circularly symmetric pattern around each
-        %                  pixel. Increase the number of neighbors to encode
-        %                  greater detail around each pixel. Typical values are
-        %                  between 4 and 24.
-        %
-        %  'Radius'        The radius, in pixels, of the circular pattern used to
-        %                  select neighbors for each pixel in I. Increase the
-        %                  radius to capture detail over a larger spatial scale.
-        %                  Typical values range from 1 to 5.
-        %
-        %  'Upright'       A logical scalar. When set to true, the LBP features do
-        %                  not encode rotation information. Set 'Upright' to false
-        %                  when rotationally invariant features are required.
-        %
-        %  'Interpolation' Specify the interpolation method used to compute pixel
-        %                  neighbors as 'Nearest' or 'Linear'. Use 'Nearest' for
-        %                  faster computation at the cost of accuracy.
-        %
-        %  LBP histogram parameters
-        %  ------------------------
-        %
-        %  'CellSize'      A 2-element vector that partitions I into
-        %                  floor(size(I)./CellSize) non-overlapping cells.
-        %                  Select larger cell sizes to collect information over
-        %                  larger regions at the cost of loosing local detail.
-        %
-        %
-        %  'Normalization' Specify the type of normalization applied to the LBP
-        %                  histograms as 'L2' or 'None'. Select 'None' to apply a
-        %                  custom normalization method as a post-processing step.
-        %
-        % -----
-        % This function extracts uniform local binary patterns. Uniform patterns
-        % have at most two 1-to-0 or 0-to-1 bit transitions.
-        
+           
         function [lbpHist] = LBPFeaturesExtractor(I, numNeighbors, radius, interpolation, uniform, upright, cellSize, normalization)
-            
+        %% Estrazione di un Logical Binary Pattern(LBP) uniforme da un immagine in scala di grigio e restituisce un vettore 1xN di features
+        %  Uniforme:   ogni pattern binary locale ha al massimo 2 transizioni 1-a-0 o 0-a-1 
+        %
+        %  Parametri:
+        %
+        %  NumNeighbors     Numero di Pixel da considerare neighbors per
+        %                   calcolare LBP localmente per ogni pixel. L'insieme dei neighbors
+        %                   è selezionato in maniera circolare e simmetrica intorno al
+        %                   pixel. Aumentare il numero di neighbors aggiunge dettaglio al
+        %                   vettore di features, rendendolo più grande e più preciso.
+        %                   Tuttavia utilizzando l'algoritmo per la Face Recognition è
+        %                   preferibile non aumentare oltre 8 questo parametro, in quanto le
+        %                   dimensioni del vettore crescono di molto e l'efficacia del
+        %                   riconoscimento diminuisce 
+        %
+        %  Radius           La dimensione del raggio della circonferenza
+        %                   che identifica i neighbors di un pixel. Aumentando il valore
+        %                   vengono catturati dettagli su una superficie maggiore per ogni
+        %                   pixel.
+        %
+        %  Upright          Valore logico che indica se è necessario
+        %                   codificare informazioni relative all'invarianza alla rotazione o
+        %                   meno
+        %
+        %  Interpolation    Specifica il metodo di interpolazione usato per
+        %                   calcolare i pixel neighbors. 'Linear' o
+        %                   'Nearest' . 
+        %                   SI POTREBBE ELIMINARE e usare sempre Linear
+        %                  
+        %  CellSize         Vettore di due elementi che definisce la
+        %                   dimensione delle celle in cui viene divisa l'immagine. Su
+        %                   ciascuna cella viene calcolato LBP per poi riportare ciascun
+        %                   risultato a un vettore di features globale. Abbiamo riscontrato
+        %                   buoni risultati dividendo l'immagine in 16 parti.
+        %
+        %  Normalization   Tipo di Normalizzazione da utilizzare sugli
+        %                  histogrammi LBP. 'L2' o 'None'
+        %                  SI POTREBBE ELIMINARE e usare sempre L2
+
             I = im2uint8(I);
             
             [x, y] = managerLBP.generateNeighborLocations(numNeighbors, radius);
