@@ -105,15 +105,14 @@ classdef managerLBP
                 %   sulle ordinate 
                 for y = ((radius+1):ymax)
                     
+                    %   Associa un valore decimale al vicinato corrente (ad esempio un intero tra 0-255 se numNeighbors=8)
                     lbp = managerLBP.computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights);
                     
-                    if ~upright
-                        bin = managerLBP.getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
-                    else
-                        bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
-                    end
-                    
-                    
+                    %   Sulla base del valore decimale lbp precedentemente
+                    %   calcolato, viene calcolato un nuovo valore che sia
+                    %   uniforme: ogni pattern binario locale ha al massimo 2 transizioni 1-a-0 o 0-a-1
+                    bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);  
+                                  
                      %   Calcolo delle coordinate y nell'istogramma delle varie
                      %   barre
                     cy = floor((y-0.5) * invCellSize(1) - 0.5);
@@ -249,33 +248,42 @@ classdef managerLBP
         % -----------------------------------------------------------------
         function lbp = computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights)
         %   La funzione calcola un descrittore LBP (quando necessario
-        %   multi-byte) di tipo uint8 per ogni vicinato
+        %   multi-byte, se numNeighbors>8) di tipo uint8 per ogni vicinato.
+        %   Più semplicemente, a ogni vicinato, viene associato un valore
+        %   intero. Nel caso di numNeighbors=8, viene associato un intero
+        %   tra 0 e 255
            
-            
+            %Inizializza lbp con 0 codificati in uint8
             lbp = zeros(1,numBytes,'uint8');
+            
+            %Identifica il centro della porzione di immagine corrente
             center = I(y,x);
             
             p2 = coder.internal.indexInt(numNeighbors);
             p1 = coder.internal.indexInt((8*numBytes)-7+1);
-            for n = 1:numBytes % MSB [xxxx] LSB
-                for p = p2:-1:p1 % reverse order b/c of bitshift to left
+            
+            %Per ogni byte del vettore caratteristiche della zona corrente
+            for n = 1:numBytes 
+                %Per ogni bit del vettore, a partire dal più significativo,
+                %del byte corrente
+                for p = p2:-1:p1
                     
-                    
+                    %   Valore interpolato del pixel corrente
                     neighbor = managerLBP.bilinearInterp(I, x, y, p, offsets, weights);
                     
-                    
+                    %   Xor bit a bit il valore corrente del vettore
+                    %   caratteristiche e il valore del confronto tra il
+                    %   pixel interpolato e il centro del suo neighbor
                     lbp(n) = bitor(lbp(n), uint8(neighbor >= center));
                     lbp(n) = bitshift(uint8(lbp(n)),uint8(1));
                 end
                 
-                % bit p1-1
-                
-                neighbor = managerLBP.bilinearInterp(I, x, y, p1-1, offsets, weights);
-                
-                
+                %   Infine calcolo del valore complessivo del vettore
+                %   caratteristiche per questa byte di questa zona
+                neighbor = managerLBP.bilinearInterp(I, x, y, p1-1, offsets, weights);      
                 lbp(n) = bitor(lbp(n), uint8(neighbor >= center));
                 
-                % next byte
+                % Passaggio al byte successivo se presente
                 p2 = p1-2;
                 p1 = p2-7+1;
             end
@@ -283,37 +291,38 @@ classdef managerLBP
         
         
         % -----------------------------------------------------------------
-        % Return uniform rotated LBP code from plain LBP (stored in
-        % multi-byte format).
-        function [bin] = getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright)
-            
-            bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
-        end
-        
-        
-        % -----------------------------------------------------------------
-        % Return uniform LBP code from plain LBP (stored in multi-byte
-        % format).
         function bin = getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright)
+        %   Calcola un pattern binario uniforme (ha al massimo 2 transizioni 1-a-0 o 0-a-1)
+        %   a partire dal valore lbp locale
             
+            %   Calcola il numero di transizioni in lbp
             u = managerLBP.uniformLBP(lbp, numNeighbors);
             
+            %   Se è già uniforme 
             if u <= 2
                 value = sum(scaling.*single(lbp));
                 value = cast(value, 'uint32');
                 
+                %   Numero di bit restanti nel lbp corrente
                 numBits = managerLBP.getNumSetBits(value, numNeighbors);
                 
+                %   Restituisce un pattern lbp minimizzato calcolato ruotando
+                %   il codice lbp di input verso la destra finchè non è minimo.
                 [~, numShifts] = managerLBP.rotateLBP(value, numNeighbors);
                 
                 if ~upright
-                    % uniform + rotated
-                    bin =  index(numBits+1) + 1; % +1 for 1-based
+                %   Se l'immagine è ruotata, non si può utilizzare il
+                %   valore numShifts perchè non si può minimizzare lbp per
+                %   tener conto della rotazione
+                    bin =  index(numBits+1) + 1;
                 else
-                    % uniform
+                %   Se invece l'immagine non è ruotata, è possibile
+                %   minimizzarlo 
                     bin =  index(numBits+1) + numShifts + 1;
                 end
             else
+            %   Se non è uniforme (u>2) si prende come bin il valore
+            %   numBins
                 bin = numBins;
             end
         end
@@ -321,19 +330,22 @@ classdef managerLBP
         
         % -----------------------------------------------------------------
         function px = bilinearInterp(I, x, y, idx, offsets, weights)
-       
+            %   L’algoritmo di interpolazione bilineare considera 
+            %   quattro pixel limitrofi presi da una matrice 3×3 dove il punto centrale è quello da interpolare.
             y = int32(y);
             x = int32(x);
             
-            % neighbors of pixel,x
-            % f(0,0) -- f(1,0)
-            % |       x    |
-            % f(0,1) -- f(1,1)
+            % 	Calcolo dei neighbors del punto P di cordinate x,y
+            %   f(0,0)    f(1,0)
+            %          P    
+            %   f(0,1)    f(1,1)
             f00 = single(I(y + offsets(2,1,idx), x + offsets(1,1,idx)));
             f10 = single(I(y + offsets(2,2,idx), x + offsets(1,2,idx)));
             f01 = single(I(y + offsets(2,3,idx), x + offsets(1,3,idx)));
             f11 = single(I(y + offsets(2,4,idx), x + offsets(1,4,idx)));
             
+            
+            %   Calcolo dei fattori e pesi per l'interpolazione
             a = f00;
             b = f10 - f00;
             c = f01 - f00;
@@ -343,6 +355,7 @@ classdef managerLBP
             yval = weights(2, idx);
             xy   = weights(3, idx);
             
+            %   Valore pixel interpolato
             px = a + b*xval + c*yval + d*xy;
             
         end
@@ -350,21 +363,25 @@ classdef managerLBP
         
         % -----------------------------------------------------------------
         function u = uniformLBP(lbp, NumNeighbors)
-            % Returns the number of transitions in a binary lbp code.
-            % lbp may be stored in multi-byte format; elem 1 is MSB, end is LSB
+            %   Restituisce il numero di transizioni nel codice lbp binario
+            %   tenendo conto che questo potrebbe occupare più di un byte
             
             numBytes = int32(numel(lbp));
             
-            % init
-            n = int32(8) - int32((8*numBytes)) + int32(NumNeighbors); % position in the byte to start at
-            % initialize with transition from MSB to LSB
+            %   Posizione da cui iniziare nel byte
+            n = int32(8) - int32((8*numBytes)) + int32(NumNeighbors);
+            
             u = bitxor(bitget(lbp(1),n), bitget(lbp(end), 1));
             a = bitget(lbp(1), n);
             n = n - 1;
             
-            for j = 1:numBytes  % MSB [xxxx] LSB
+            %Per ogni byte
+            for j = 1:numBytes  
+                %Per ogni bit nel byte
                 while n
                     b = bitget(lbp(j), n);
+                    
+                    %Conteggio transizioni
                     u = u + bitxor(a,b);
                     a = b;
                     n = n - 1;
@@ -376,6 +393,7 @@ classdef managerLBP
         
         % -----------------------------------------------------------------
         function n = getNumSetBits(value, NumNeighbors)
+        %   Calcola il numero di bit
             n = uint32(0);
             for i = 1:NumNeighbors
                 n = n + cast(bitget(value, i),'uint32');
@@ -385,9 +403,10 @@ classdef managerLBP
         
         % -----------------------------------------------------------------
         function [rotated, count] = rotateLBP(lbp, NumNeighbors)
-            % Return minimized lbp pattern computed by rotating the input
-            % lbp code to the right until it is minimized. Also return the
-            % number of shifts needed to reach minimum.
+        %   Restituisce un pattern lbp minimizzato calcolato ruotando
+        %   il codice lbp di input verso la destra finchè non è minimo.
+        %   Restituisce anche il conteggio di shift eseguiti per
+        %   raggiungere il minimo
             rotated = lbp;
             count = uint32(0);
             for k = 1:uint32(NumNeighbors)
@@ -401,14 +420,13 @@ classdef managerLBP
         
         
         % -----------------------------------------------------------------
-        % circular right shift: x >> K | x << (NumNeighbors-K)
         function out = rotr(in, K, NumNeighbors)
-            
-            
+        %   Effettua uno shift circolare a destra 
+         
             a = bitshift(in, -K);
             b = bitshift(in, NumNeighbors - K);
-            mask = cast(2^NumNeighbors-1, 'like', in); % required for partial bytes
-            b = bitand(b, mask);            % mask out upper 8-NumNeighbors bits
+            mask = cast(2^NumNeighbors-1, 'like', in); % Effettua il cast di 2^NumNeighbors-1 a un tipo di dato compatibile con in (nel caso di byte parziali)
+            b = bitand(b, mask);                       % Maschera gli 8 bit più significativi di b
             out = bitor(a,b);
         end
     end
