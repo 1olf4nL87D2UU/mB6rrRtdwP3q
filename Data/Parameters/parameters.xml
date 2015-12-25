@@ -1,11 +1,8 @@
 <?xml-stylesheet type="text/xsl"?>
 <parameters>
-     <!--Experimental best results with 8, 1, 4 , Linear, true, true, L2 -->
+     <!--Experimental best results with 8, 1, 4, true -->
 	<NumNeighbors>8</NumNeighbors>
 	<Radius>1</Radius>
     <CellSizeDivisior>4</CellSizeDivisior>
-    <Interpolation>Linear</Interpolation>
-    <Uniform>true</Uniform>
 	<Upright>true</Upright>
-	<Normalization>L2</Normalization>
 </parameters>

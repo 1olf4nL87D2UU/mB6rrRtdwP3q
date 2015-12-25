@@ -8,7 +8,7 @@ function featuresVector= faceRecognition(I)
 %%  Detection tramite Viola-Jones e Ridimensionamento
 %   Questo passo viene effettivamente svolto soltanto se il bounding box
 %   ottenuto risulta non vuoto, oppure risulta essere più piccolo
-%   dell'immagine di origini di 0.5 volte. Questo criterio è stato aggiunto per evitare
+%   dell'immagine di origine di 0.5 volte. Questo criterio è stato aggiunto per evitare
 %   che venga tragliata parte del volto in immagini che sono già dei primi piani molto ravvicinati.
 
 detector = vision.CascadeObjectDetector('ClassificationModel', 'FrontalFaceLBP');
@@ -30,10 +30,10 @@ if not(isempty(bboxes))
     
     
     %Ridimensionamento dell'immagine
-    %Dal momento che tutte le immagini del database di test hanno la
-    %dimension [165 120], nel caso venissero fornite immagini di dimensioni
-    %maggiori anche queste verrano riportate dopo essere stati ritagliati i
-    %volti a queste dimensioni, al fine di essere comparabili
+    %Dal momento che tutte le immagini del database di test hanno 
+    %dimensione di [165 120], nel caso venissero fornite immagini di dimensioni
+    %maggiori anche queste verrano riportate  a queste dimensioni dopo che i volti 
+    % sono stati ritagliati, al fine di essere comparabili
     resizedI = imresize(croppedI, [165 120]);
     I=resizedI;
     end
@@ -46,12 +46,14 @@ dim=size(I);
 
 %Recupero parametri statici e calcolo parametri dinamici
 paramaters = parseXML();
-cellSize=round(dim./paramaters.CellSizeDivisior);
+%Forniamo in input valori di CellSizeDivisor che dividano ll volto in 4,8 o
+%16 Regioni
+cellSize=round(dim./paramaters.CellSizeDivisor);
 
 
 
 %% Calcolo del feature vectore in base ai parametri forniti tramite file XML
 %  Per una migliore comprensione dei parametri visionare i commenti in
 %  parameters.xml e managerLBP
-featuresVector = managerLBP.LBPFeaturesExtractor(I, paramaters.NumNeighbors, paramaters.Radius, paramaters.Interpolation, paramaters.Uniform,paramaters.Upright, cellSize, paramaters.Normalization);
+featuresVector = managerLBP.LBPFeaturesExtractor(I, paramaters.NumNeighbors, paramaters.Radius, paramaters.Upright, cellSize);
 

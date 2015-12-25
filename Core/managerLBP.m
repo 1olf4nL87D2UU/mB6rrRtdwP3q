@@ -1,72 +1,68 @@
 classdef managerLBP
     
     methods(Static)
-           
-        function [lbpHist] = LBPFeaturesExtractor(I, numNeighbors, radius, interpolation, uniform, upright, cellSize, normalization)
-        %% Estrazione di un Logical Binary Pattern(LBP) uniforme da un immagine in scala di grigio e restituisce un vettore 1xN di features
-        %  Uniforme:   ogni pattern binary locale ha al massimo 2 transizioni 1-a-0 o 0-a-1 
-        %
-        %  Parametri:
-        %
-        %  NumNeighbors     Numero di Pixel da considerare neighbors per
-        %                   calcolare LBP localmente per ogni pixel. L'insieme dei neighbors
-        %                   è selezionato in maniera circolare e simmetrica intorno al
-        %                   pixel. Aumentare il numero di neighbors aggiunge dettaglio al
-        %                   vettore di features, rendendolo più grande e più preciso.
-        %                   Tuttavia utilizzando l'algoritmo per la Face Recognition è
-        %                   preferibile non aumentare oltre 8 questo parametro, in quanto le
-        %                   dimensioni del vettore crescono di molto e l'efficacia del
-        %                   riconoscimento diminuisce 
-        %
-        %  Radius           La dimensione del raggio della circonferenza
-        %                   che identifica i neighbors di un pixel. Aumentando il valore
-        %                   vengono catturati dettagli su una superficie maggiore per ogni
-        %                   pixel.
-        %
-        %  Upright          Valore logico che indica se è necessario
-        %                   codificare informazioni relative all'invarianza alla rotazione o
-        %                   meno
-        %
-        %  Interpolation    Specifica il metodo di interpolazione usato per
-        %                   calcolare i pixel neighbors. 'Linear' o
-        %                   'Nearest' . 
-        %                   SI POTREBBE ELIMINARE e usare sempre Linear
-        %                  
-        %  CellSize         Vettore di due elementi che definisce la
-        %                   dimensione delle celle in cui viene divisa l'immagine. Su
-        %                   ciascuna cella viene calcolato LBP per poi riportare ciascun
-        %                   risultato a un vettore di features globale. Abbiamo riscontrato
-        %                   buoni risultati dividendo l'immagine in 16 parti.
-        %
-        %  Normalization   Tipo di Normalizzazione da utilizzare sugli
-        %                  histogrammi LBP. 'L2' o 'None'
-        %                  SI POTREBBE ELIMINARE e usare sempre L2
-
+        
+        function [lbpHist] = LBPFeaturesExtractor(I, numNeighbors, radius, upright, cellSize)
+            %% Estrazione di un Logical Binary Pattern(LBP) uniforme da un immagine in scala di grigio e restituzione di un vettore 1xN di features
+            %  Uniforme:   ogni pattern binario locale ha al massimo 2 transizioni 1-a-0 o 0-a-1
+            %
+            %  L'algoritmo prevede l'utilizzo di interpolazione bilineare e di
+            %  normalizzazione degli istrogrammi LBP
+            %
+            %  Parametri:
+            %
+            %  NumNeighbors     Numero di Pixel da considerare neighbors per
+            %                   calcolare LBP localmente per ogni pixel. L'insieme dei neighbors
+            %                   è selezionato in maniera circolare e simmetrica intorno al
+            %                   pixel. Aumentare il numero di neighbors aggiunge dettaglio al
+            %                   vettore di features, rendendolo più grande e più preciso.
+            %                   Tuttavia utilizzando l'algoritmo per la Face Recognition è
+            %                   preferibile non aumentare oltre 8 questo parametro, in quanto le
+            %                   dimensioni del vettore crescono di molto e l'efficacia del
+            %                   riconoscimento diminuisce.
+            %
+            %  Radius           La dimensione del raggio della circonferenza
+            %                   che identifica i neighbors di un pixel. Aumentando il valore
+            %                   vengono catturati dettagli su una superficie maggiore per ogni
+            %                   pixel.
+            %
+            %  Upright          Valore logico che indica se è necessario
+            %                   codificare informazioni relative all'invarianza alla rotazione o
+            %                   meno.
+            %
+            %  CellSize         Vettore di due elementi che definisce la
+            %                   dimensione delle celle in cui viene divisa l'immagine. Su
+            %                   ciascuna cella viene calcolato LBP per poi riportare ciascun
+            %                   risultato a un vettore di features globale. Abbiamo riscontrato
+            %                   buoni risultati dividendo l'immagine in 16 parti.
+            
+            
+            
             I = im2uint8(I);
             
+            %   La chiamata a generateNeighborLocations genera due vettori x
+            %   e y, ognuno contenent 8 elementi, rappresentanti le cordinate
+            %   dei vicini di un pixel rispetto a quel pixel
+            %   [Maggiori dettagli nei commenti della funzione]
             [x, y] = managerLBP.generateNeighborLocations(numNeighbors, radius);
             
-            if strncmpi(interpolation, 'l', 1)
-                [offsets, weights] = managerLBP.createBilinearOffsets(x, y, numNeighbors);
+            
+            %   La chiamata calcola gli offset e i pesi per
+            %   l'interpolazione lineare dei vicini di P
+            %   [Maggiori dettagli nei commenti della funzione]   
+            [offsets, weights] = managerLBP.createBilinearOffsets(x, y, numNeighbors);
+            
+  
+            % on-the-fly LBP computations
+            if  ~upright
+                % uniform and rotated
+                numBins = uint32(numNeighbors + 2);
+                index   = uint32(0:numNeighbors);
             else
-                [offsets, weights] =  managerLBP.createNearestOffsets(x, y);
+                numBins = uint32(numNeighbors*(numNeighbors-1) + 3);
+                index   = uint32([0 1:numNeighbors:(numNeighbors*(numNeighbors-1)+1)]);
             end
             
-            
-            if ~uniform && upright
-                numBins = uint32(2^numNeighbors);
-            else
-                
-                % on-the-fly LBP computations
-                if uniform && ~upright
-                    % uniform and rotated
-                    numBins = uint32(numNeighbors + 2);
-                    index   = uint32(0:numNeighbors);
-                else
-                    numBins = uint32(numNeighbors*(numNeighbors-1) + 3);
-                    index   = uint32([0 1:numNeighbors:(numNeighbors*(numNeighbors-1)+1)]);
-                end
-            end
             
             [M, N] = size(I);
             
@@ -95,20 +91,17 @@ classdef managerLBP
                 
                 for y = ((radius+1):ymax)
                     
-                    lbp = managerLBP.computeMultibyteLBP(I, x, y, numNeighbors, interpolation, numBytes, offsets, weights);
+                    lbp = managerLBP.computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights);
                     
-                    if ~uniform && upright
-                        bin =  managerLBP.getLBPCodePlain(lbp, scaling);
-                        
+                    
+                    % on-the-fly LBP computations
+                    if ~upright
+                        % uniform and rotated
+                        bin = managerLBP.getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
                     else
-                        % on-the-fly LBP computations
-                        if uniform && ~upright
-                            % uniform and rotated
-                            bin = managerLBP.getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
-                        else
-                            bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
-                        end
+                        bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
                     end
+                    
                     
                     % spatial weights for cell bins
                     cy = floor((y-0.5) * invCellSize(1) - 0.5);
@@ -134,70 +127,88 @@ classdef managerLBP
             % remove border cells
             lbpHist = lbpHist(:, 2:end-1, 2:end-1);
             
-            % normalize
-            if strcmpi(normalization, 'l2')
-                lbpHist = bsxfun(@rdivide, lbpHist, sqrt(sum(lbpHist.^2)) + eps('single'));
-            end
+            
+            
+            lbpHist = bsxfun(@rdivide, lbpHist, sqrt(sum(lbpHist.^2)) + eps('single'));
+            
             
             % output features as 1-by-N
             lbpHist = reshape(lbpHist, 1, []);
         end
         
+        
+        
         % -----------------------------------------------------------------
         function [x, y] = generateNeighborLocations(numNeighbors, radius)
-            % generate locations for circular symmetric neighbors
+            %  La funzione genera due vettori x e y (8 elementi ciascuno)
+            %  che rappresentano le coordinate rispetto a ciascun pixel dei suoi vicini
+            %
+            %  numNeighbors: Numero di vicini da considerar
+            %  radius:       Dimensione del raggio della circonferenza
+            %                sulla quale ricercare i vicini
+            
+            %  Calcolo dell'angolo (in gradi) in cui trovare ciascun vicino
+            %  [esempio: a 45° dal pixel]
             theta = single((360/numNeighbors) * (0:numNeighbors-1));
             
+            %  Calcolo del raggio per il coseno o il seno degli angoli theta
+            %  Nel caso il raggio sia 1, x e y rappresentano esattamente il
+            %  seno e il coseno relativi alal posizione in gradi di ogni
+            %  vicino rispetto al pixel centrale
             x =  radius * cosd(theta);
             y = -radius * sind(theta);
         end
         
         
+        % -----------------------------------------------------------------
         function [offsets, weights] = createBilinearOffsets(x, y, numNeighbors)
+            %   La funzione genera due matrici rappresentanti gli offset e
+            %   i pesi dei pixel per l'interpolazione bilineare
             
-            % Pre-compute offsets to neighbors of pixel,px
-            % f(0,0) -- f(1,0)
-            % |      px    |
-            % f(0,1) -- f(1,1)
+            %   La fuzione floor arrotonda x all'intero più vicino (per difetto)
             floorX = floor(x);
             floorY = floor(y);
+            
+            %   La funzione ceil arrotonda x all'intero più vicino (per eccesso)
             ceilX  = ceil(x);
             ceilY  = ceil(y);
             
-            offsets = ...
-                [floorX; floorY   % f(0,0)
+            %   Si calcolano ora gli offsets dei vicini di P
+            %   (esempio caso 4 vicini):
+            %   f(0,0)    f(1,0)
+            %          P
+            %   f(0,1)    f(1,1)
+            offsets =    [floorX; floorY    % f(0,0)
                 ceilX ; floorY    % f(1,0)
                 floorX; ceilY     % f(0,1)
                 ceilX ; ceilY];   % f(1,1)
             
-            % Pre-compute interp weights, dx, dy, dx*dy for bilinear interp
+            %   Vengono ora calcolati i pesi Dx, Dy e Dx*Dy per
+            %   l'interpolazione bilineare
+            %   Dx e Dy sono le distanze fra P e f(0,0)
             %
-            %  dx and dy are distances from f(0,0) to the pixel, px, to be
-            %  interpolated.
+            %  f(0,0)----
+            %         Dx  |
+            %             | Dy
             %
-            %  f(0,0)---->
-            %         dx  |
-            %             | dy
-            %             v
-            %            px
-            %
-            weights      = coder.nullcopy(zeros(3, numNeighbors, 'single'));
-            weights(1,:) = x - offsets(1,:);               % x
-            weights(2,:) = y - offsets(2,:);               % y
-            weights(3,:) = weights(1,:) .* weights(2,:);   % xy
+            %             P
             
-            % 2-by-4-by-N storage to simplify indexing during interp.
+            %   Inizializza weights a una matrice 3x8 vuota
+            weights      = coder.nullcopy(zeros(3, numNeighbors, 'single'));
+            
+            weights(1,:) = x - offsets(1,:);               % Calcolo Dx
+            weights(2,:) = y - offsets(2,:);               % Calcolo Dy
+            weights(3,:) = weights(1,:) .* weights(2,:);   % Calcolo Dx*Dy
+            
+            %   Rimodella la matrice degli offset affinchè sia della forma
+            %   2x4xnumNeighbors
             offsets = reshape(offsets, 2, 4, []);
             
             offsets = int32(offsets);
             
         end
         
-        function [offsets, weights] = createNearestOffsets(x, y)
-            offsets = int32(round([x;y]));
-            weights = zeros(1,1,'single');
-        end
-        
+        % -----------------------------------------------------------------
         function h = initializeHist(cellSize, numBins, M, N)
             numCells = floor([M N]./cellSize);
             h = zeros([numBins numCells+2],'single');  % +2 for cells bins at edges, these are remove later
@@ -217,7 +228,7 @@ classdef managerLBP
         % Returns a multi-byte LBP code stored in stored as multiple uint8
         % values. lbp(1) is the MSB, lbp(end) is the LSB.
         % -----------------------------------------------------------------
-        function lbp = computeMultibyteLBP(I, x, y, numNeighbors, interpolation, numBytes, offsets, weights)
+        function lbp = computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights)
             
             coder.inline('always');
             
@@ -229,22 +240,18 @@ classdef managerLBP
             for n = coder.unroll(1:numBytes) % MSB [xxxx] LSB
                 for p = p2:-1:p1 % reverse order b/c of bitshift to left
                     
-                    if strcmpi(interpolation, 'linear')
-                        neighbor = managerLBP.bilinearInterp(I, x, y, p, offsets, weights);
-                    else
-                        neighbor = managerLBP.nearestInterp(I, x, y, p, offsets);
-                    end
+                    
+                    neighbor = managerLBP.bilinearInterp(I, x, y, p, offsets, weights);
+                    
                     
                     lbp(n) = bitor(lbp(n), uint8(neighbor >= center));
                     lbp(n) = bitshift(uint8(lbp(n)),uint8(1));
                 end
                 
                 % bit p1-1
-                if strcmpi(interpolation, 'linear')
-                    neighbor = managerLBP.bilinearInterp(I, x, y, p1-1, offsets, weights);
-                else
-                    neighbor = managerLBP.nearestInterp(I, x, y, p1-1, offsets);
-                end
+                
+                neighbor = managerLBP.bilinearInterp(I, x, y, p1-1, offsets, weights);
+                
                 
                 lbp(n) = bitor(lbp(n), uint8(neighbor >= center));
                 
@@ -253,12 +260,7 @@ classdef managerLBP
                 p1 = p2-7+1;
             end
         end
-        % -----------------------------------------------------------------
-        % Return plain LBP code and bin for histogram.
-        function [bin] = getLBPCodePlain(lbp, scaling)
-            lbp = sum(scaling.*single(lbp));
-            bin = single(lbp)+1;
-        end
+        
         
         % -----------------------------------------------------------------
         % Return uniform rotated LBP code from plain LBP (stored in
