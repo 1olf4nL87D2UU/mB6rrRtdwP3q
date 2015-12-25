@@ -48,17 +48,19 @@ classdef managerLBP
             
             
             %   La chiamata calcola gli offset e i pesi per
-            %   l'interpolazione lineare dei vicini di P
+            %   l'interpolazione bilineare dei vicini di P
             %   [Maggiori dettagli nei commenti della funzione]   
             [offsets, weights] = managerLBP.createBilinearOffsets(x, y, numNeighbors);
             
   
             % on-the-fly LBP computations
             if  ~upright
-                % uniform and rotated
+                %   Nel caso l'immagine non sia upright, vuol dire che ci
+                %   possono essere degli elementi ruotati nell'immagine
                 numBins = uint32(numNeighbors + 2);
                 index   = uint32(0:numNeighbors);
             else
+                %   Viceversa, l'immagine non presenta elementi ruotati
                 numBins = uint32(numNeighbors*(numNeighbors-1) + 3);
                 index   = uint32([0 1:numNeighbors:(numNeighbors*(numNeighbors-1)+1)]);
             end
@@ -325,13 +327,8 @@ classdef managerLBP
             px = a + b*xval + c*yval + d*xy;
             
         end
-        % -----------------------------------------------------------------
-        function px = nearestInterp(I, x, y, idx, offsets)
-            coder.inline('always')
-            y = int32(y);
-            x = int32(x);
-            px = single(I(y + offsets(2, idx), x + offsets(1, idx)));
-        end
+       
+        
         % -----------------------------------------------------------------
         function u = uniformLBP(lbp, NumNeighbors)
             % Returns the number of transitions in a binary lbp code.
