@@ -28,16 +28,17 @@ classdef managerLBP
             %
             %  Upright          Valore logico che indica se è necessario
             %                   codificare informazioni relative all'invarianza alla rotazione o
-            %                   meno.
+            %                   meno. Per le immagini del Database di Test
+            %                   questa caratteristica non è fondamentale,
+            %                   ma in presenza di volti inclinati permette
+            %                   risultati migliori
             %
             %  CellSize         Vettore di due elementi che definisce la
             %                   dimensione delle celle in cui viene divisa l'immagine. Su
             %                   ciascuna cella viene calcolato LBP per poi riportare ciascun
             %                   risultato a un vettore di features globale. Abbiamo riscontrato
             %                   buoni risultati dividendo l'immagine in 16 parti.
-            
-            
-            
+                   
             I = im2uint8(I);
             
             %   La chiamata a generateNeighborLocations genera due vettori x
@@ -45,15 +46,12 @@ classdef managerLBP
             %   dei vicini di un pixel rispetto a quel pixel
             %   [Maggiori dettagli nei commenti della funzione]
             [x, y] = managerLBP.generateNeighborLocations(numNeighbors, radius);
-            
-            
+                       
             %   La chiamata calcola gli offset e i pesi per
             %   l'interpolazione bilineare dei vicini di P
             %   [Maggiori dettagli nei commenti della funzione]   
-            [offsets, weights] = managerLBP.createBilinearOffsets(x, y, numNeighbors);
-            
+            [offsets, weights] = managerLBP.createBilinearOffsets(x, y, numNeighbors);           
   
-            % on-the-fly LBP computations
             if  ~upright
                 %   Nel caso l'immagine non sia upright, vuol dire che ci
                 %   possono essere degli elementi ruotati nell'immagine
@@ -64,48 +62,60 @@ classdef managerLBP
                 numBins = uint32(numNeighbors*(numNeighbors-1) + 3);
                 index   = uint32([0 1:numNeighbors:(numNeighbors*(numNeighbors-1)+1)]);
             end
-            
-            
+                     
             [M, N] = size(I);
             
+            %   Inizializza un Istogramma per le caratteristiche LBP che
+            %   abbia numBins barre e dimensione basata sul numero di
+            %   celle (calcolato tramite dimensione immagine e dimensione celle)
             lbpHist = managerLBP.initializeHist(cellSize, numBins, M, N);
             
+            %   Calcolo delle massime cordinate tenendo conto della
+            %   divisione in celle
             [xmax, ymax] = managerLBP.computeRange(cellSize, radius, M, N);
             
             invCellSize = 1./cellSize;
             
+            %   Calcolo per eccesso del numero di byte necessari a salvare
+            %   le caratteristiche di un "vicinato"
+            %   Se il numero di vicini è 8, numBytes=1
             numBytes = ceil(numNeighbors/8);
             
-            % Scaling to convert N bytes to a float. MSB is at elem 1, LSB
-            % is at end.
-            scaling  = 2.^((8*numBytes-8):-8:0); % to store multi-byte LBP
+            %   Fattore di scaling per convertire N byte in un float (Necessario per salvare LBP multy-byte)
+            %   Se il numero di vicini è 8, scaling=1
+            scaling  = 2.^((8*numBytes-8):-8:0);
             
-            % start at Radius+1 to process full Radius+1-by-Radius+1 block
+            
+            %%  DA RIVEDERE TUTTI I COMMENTI NEL CICLO
+            %   Ciclo che parte da radius+1, e incremento per volta arriva
+            %   alla cordinata x massima
             for x = ((radius+1):xmax)
                 
+                %   Calcolo delle coordinate x nell'istogramma delle varie
+                %   barre
                 cx = floor((x-0.5) * invCellSize(2) - 0.5);
                 x0 = cellSize(2) * (cx + 0.5);
                 
                 wx2 = ((x-0.5) - x0) * invCellSize(2);
                 wx1 = 1 - wx2;
                 
-                cx = cx + 2; % 1-based
+                cx = cx + 2; 
                 
+                %   Per ogni radius da radius+1 a xmax, calcola il vettore lbp e le barre dell'istogramma lbp scorrendo
+                %   sulle ordinate 
                 for y = ((radius+1):ymax)
                     
                     lbp = managerLBP.computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights);
                     
-                    
-                    % on-the-fly LBP computations
                     if ~upright
-                        % uniform and rotated
                         bin = managerLBP.getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
                     else
                         bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
                     end
                     
                     
-                    % spatial weights for cell bins
+                     %   Calcolo delle coordinate y nell'istogramma delle varie
+                     %   barre
                     cy = floor((y-0.5) * invCellSize(1) - 0.5);
                     y0 = cellSize(1) * (cy + 0.5);
                     
@@ -113,6 +123,7 @@ classdef managerLBP
                     wy1 = 1 - wy2;
                     cy = cy + 2; % 1 - based
                     
+                    %   Calcolo dei pesi per ciascuna barra dell'istogramma
                     wx1y1 = wx1 * wy1;
                     wx2y2 = wx2 * wy2;
                     wx1y2 = wx1 * wy2;
@@ -126,20 +137,19 @@ classdef managerLBP
                 end
             end
             
-            % remove border cells
+            % Rimozione delle celle aggiunte ai bordi
             lbpHist = lbpHist(:, 2:end-1, 2:end-1);
             
-            
-            
+ 
             lbpHist = bsxfun(@rdivide, lbpHist, sqrt(sum(lbpHist.^2)) + eps('single'));
             
             
-            % output features as 1-by-N
+            % Rimodella l'istogramma in un vettore di caratteristiche
+            % 1x[ColonneNecessarie]
             lbpHist = reshape(lbpHist, 1, []);
         end
         
-        
-        
+         
         % -----------------------------------------------------------------
         function [x, y] = generateNeighborLocations(numNeighbors, radius)
             %  La funzione genera due vettori x e y (8 elementi ciascuno)
@@ -206,40 +216,48 @@ classdef managerLBP
             %   2x4xnumNeighbors
             offsets = reshape(offsets, 2, 4, []);
             
-            offsets = int32(offsets);
-            
+            offsets = int32(offsets);        
         end
+        
         
         % -----------------------------------------------------------------
         function h = initializeHist(cellSize, numBins, M, N)
+            %   Calcola il numero di celle in base alla dimensione
+            %   dell'immagine e della dimensione delle celle fornita in
+            %   input
             numCells = floor([M N]./cellSize);
-            h = zeros([numBins numCells+2],'single');  % +2 for cells bins at edges, these are remove later
+            
+            %   Inizializza a zero un istogramma di dimensione basata sul
+            %   numero di barre e il numero di celle (2 in più per i contorni)
+            h = zeros([numBins numCells+2],'single'); 
         end
         
+        
+         % -----------------------------------------------------------------
         function [xmax, ymax] = computeRange(cellSize, radius, M, N)
+        %   La funzione calcola le cordinate massime per il pixel più
+        %   "esterno" tenendo conto della divisione in celle
             
             ymax = floor(M/cellSize(1)) * cellSize(1);
             xmax = floor(N/cellSize(2)) * cellSize(2);
-            
-            % range up to last pixel in cell or that fits in image
+                 
             ymax = min(ymax, M-radius);
             xmax = min(xmax, N-radius);
         end
-        
-        % -----------------------------------------------------------------
-        % Returns a multi-byte LBP code stored in stored as multiple uint8
-        % values. lbp(1) is the MSB, lbp(end) is the LSB.
+         
+    
         % -----------------------------------------------------------------
         function lbp = computeMultibyteLBP(I, x, y, numNeighbors, numBytes, offsets, weights)
-            
-            coder.inline('always');
+        %   La funzione calcola un descrittore LBP (quando necessario
+        %   multi-byte) di tipo uint8 per ogni vicinato
+           
             
             lbp = zeros(1,numBytes,'uint8');
             center = I(y,x);
             
             p2 = coder.internal.indexInt(numNeighbors);
             p1 = coder.internal.indexInt((8*numBytes)-7+1);
-            for n = coder.unroll(1:numBytes) % MSB [xxxx] LSB
+            for n = 1:numBytes % MSB [xxxx] LSB
                 for p = p2:-1:p1 % reverse order b/c of bitshift to left
                     
                     
@@ -268,15 +286,16 @@ classdef managerLBP
         % Return uniform rotated LBP code from plain LBP (stored in
         % multi-byte format).
         function [bin] = getUniformRotatedLBPCode(lbp, index, numNeighbors, scaling, numBins, upright)
-            coder.inline('always');
+            
             bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);
         end
+        
         
         % -----------------------------------------------------------------
         % Return uniform LBP code from plain LBP (stored in multi-byte
         % format).
         function bin = getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright)
-            coder.inline('always');
+            
             u = managerLBP.uniformLBP(lbp, numNeighbors);
             
             if u <= 2
@@ -299,10 +318,10 @@ classdef managerLBP
             end
         end
         
+        
         % -----------------------------------------------------------------
         function px = bilinearInterp(I, x, y, idx, offsets, weights)
-            coder.inline('always')
-            
+       
             y = int32(y);
             x = int32(x);
             
@@ -353,6 +372,8 @@ classdef managerLBP
                 n = int32(8);
             end
         end
+        
+        
         % -----------------------------------------------------------------
         function n = getNumSetBits(value, NumNeighbors)
             n = uint32(0);
@@ -360,6 +381,8 @@ classdef managerLBP
                 n = n + cast(bitget(value, i),'uint32');
             end
         end
+        
+        
         % -----------------------------------------------------------------
         function [rotated, count] = rotateLBP(lbp, NumNeighbors)
             % Return minimized lbp pattern computed by rotating the input
@@ -375,10 +398,12 @@ classdef managerLBP
                 end
             end
         end
+        
+        
         % -----------------------------------------------------------------
         % circular right shift: x >> K | x << (NumNeighbors-K)
         function out = rotr(in, K, NumNeighbors)
-            coder.inline('always');
+            
             
             a = bitshift(in, -K);
             b = bitshift(in, NumNeighbors - K);
