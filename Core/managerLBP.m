@@ -86,23 +86,28 @@ classdef managerLBP
             scaling  = 2.^((8*numBytes-8):-8:0);
             
             
-            %%  DA RIVEDERE TUTTI I COMMENTI NEL CICLO
-            %   Ciclo che parte da radius+1, e incremento per volta arriva
-            %   alla cordinata x massima
+            %   Ciclo sulle ascisse per valori da radius+1 a xmax.
+            %   Nota: LBP calcolato solo sui pixel con distanza dal bordo
+            %   maggiore di "radius"
             for x = ((radius+1):xmax)
                 
-                %   Calcolo delle coordinate x nell'istogramma delle varie
-                %   barre
+                %   Calcolo dell'indice x della cella (relativo alla
+                %   griglia)
                 cx = floor((x-0.5) * invCellSize(2) - 0.5);
+                
+                % Calcolo dell'ordinata dell'origine della cella
                 x0 = cellSize(2) * (cx + 0.5);
                 
+                % Calcolo dei pesi spaziali relativi alla ascissa del
+                % pixel nella cella
                 wx2 = ((x-0.5) - x0) * invCellSize(2);
                 wx1 = 1 - wx2;
                 
-                cx = cx + 2; 
+                cx = cx + 2; % indice x della cella aggiornato per le celle aggiunte sui bordi
                 
-                %   Per ogni radius da radius+1 a xmax, calcola il vettore lbp e le barre dell'istogramma lbp scorrendo
-                %   sulle ordinate 
+                %   Ciclo sulle ordinate per valori da radius+1 a ymax.
+                %   Nota: LBP calcolato solo sui pixel con distanza dal bordo
+                %   maggiore di "radius" 
                 for y = ((radius+1):ymax)
                     
                     %   Associa un valore decimale al vicinato corrente (ad esempio un intero tra 0-255 se numNeighbors=8)
@@ -113,16 +118,21 @@ classdef managerLBP
                     %   uniforme: ogni pattern binario locale ha al massimo 2 transizioni 1-a-0 o 0-a-1
                     bin = managerLBP.getUniformLBPCode(lbp, index, numNeighbors, scaling, numBins, upright);  
                                   
-                     %   Calcolo delle coordinate y nell'istogramma delle varie
-                     %   barre
-                    cy = floor((y-0.5) * invCellSize(1) - 0.5);
-                    y0 = cellSize(1) * (cy + 0.5);
-                    
+                    %   Calcolo dell'indice y della cella (relativo alla
+                    %   griglia)
+                    cy = floor((y-0.5) * invCellSize(1) - 0.5);                    
+                
+                    % Calcolo dell'ordinata dell'origine della cella
+                    y0 = cellSize(1) * (cy + 0.5);                    
+                
+                    % Calcolo dei pesi spaziali relativi alla ordinata del
+                    % pixel nella cella
                     wy2 = ((y-0.5) - y0) * invCellSize(1);
                     wy1 = 1 - wy2;
-                    cy = cy + 2; % 1 - based
                     
-                    %   Calcolo dei pesi per ciascuna barra dell'istogramma
+                    cy = cy + 2; % indice y della cella aggiornato per le celle aggiunte sui bordi
+                    
+                    % Calcolo dei pesi per ciascuna barra dell'istogramma
                     wx1y1 = wx1 * wy1;
                     wx2y2 = wx2 * wy2;
                     wx1y2 = wx1 * wy2;
