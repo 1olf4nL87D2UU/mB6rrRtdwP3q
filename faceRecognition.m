@@ -10,16 +10,10 @@ function featuresVector= faceRecognition(I)
 %   ottenuto risulta non vuoto, oppure risulta essere più piccolo
 %   dell'immagine di origine di 0.5 volte. Questo criterio è stato aggiunto per evitare
 %   che venga tragliata parte del volto in immagini che sono già dei primi piani molto ravvicinati.
-
-%L'algoritmo prende in input immagini in scala di grigio
-I=rgb2gray(I);
-dim=size(I);
-
-detector = ViolaJonesDetector('ClassificationModel','FrontalFaceLBP');
-%bboxes = detect(detector,I);
+detector= vision.CascadeObjectDetector('ClassificationModel','FrontalFaceLBP');
 bboxes = step(detector,I);
 
-
+dim=size(I);
 
 %Questo passo di taglio e ridimensionamento è valido nel caso sia stata
 %data in input un immagine con un sola persona. Volti multipli non sono
@@ -45,7 +39,9 @@ if not(isempty(bboxes))
     end
 end
 
-
+%L'algoritmo prende in input immagini in scala di grigio
+I=rgb2gray(I);
+dim=size(I);
 
 %Recupero parametri statici e calcolo parametri dinamici
 paramaters = parseXML();
