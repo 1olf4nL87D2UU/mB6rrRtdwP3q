@@ -8,8 +8,9 @@ function featuresVector= faceRecognition(I)
 %%  Detection tramite Viola-Jones e Ridimensionamento
 %   Questo passo viene effettivamente svolto soltanto se il bounding box
 %   ottenuto risulta non vuoto, oppure risulta essere più piccolo
-%   dell'immagine di origine di 0.5 volte. Questo criterio è stato aggiunto per evitare
-%   che venga tragliata parte del volto in immagini che sono già dei primi piani molto ravvicinati.
+%   dell'immagine di origine di 0.3 volte in ciascuna dimensione. 
+%   Questo criterio è stato aggiunto per evitare che venga tagliata
+%   parte del volto in immagini che sono già dei primi piani molto ravvicinati.
 detector= vision.CascadeObjectDetector('ClassificationModel','FrontalFaceLBP');
 bboxes = step(detector,I);
 
@@ -19,7 +20,7 @@ dim=size(I);
 %data in input un immagine con un sola persona. Volti multipli non sono
 %previsti
 if not(isempty(bboxes)) 
-    if bboxes(3)<0.5*dim(1) && bboxes(4)<0.5*dim(2)
+    if bboxes(3)<0.3*dim(1) && bboxes(4)<0.3*dim(2)
         
     %Visualizzazione del volto con detection 
     IFaces = insertObjectAnnotation(I, 'rectangle', bboxes, 'Face');

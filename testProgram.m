@@ -17,7 +17,7 @@ clc;
 clear;
 close all;
 
-I1=imread('M-011-03.bmp');
+I1=imread('M-011-01.bmp');
 I2=imread('M-011-02.bmp');
 I3=imread('M-012-02.bmp');
 I4=imread('Test_Viola-Jones.jpg');
